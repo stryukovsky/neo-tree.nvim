@@ -31,6 +31,7 @@ local config = {
     max_lines = 10000, -- How many lines of git status results to process. Anything after this will be dropped.
                        -- Anything before this will be used. The last items to be processed are the untracked files.
   },
+  consider_untracked_as_git_change = false, -- Include untracked files when navigating git changes.
   git_status_scope_to_path = false, -- Scope git status to the displayed path instead of the entire worktree root.
                                     -- Improves performance in monorepos where the worktree root is far above the
                                     -- directory being browsed. When enabled, `git status` receives a `-- <path>`

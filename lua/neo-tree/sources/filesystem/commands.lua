@@ -163,11 +163,14 @@ local focus_next_git_modified = function(state, reverse)
   end
   ---@cast worktree_info -nil
   local paths = { current_path }
+  local consider_untracked = require("neo-tree").peek_config().consider_untracked_as_git_change
   for path, status in pairs(worktree_info.status) do
-    if path ~= current_path and not vim.tbl_contains({ "!", "?" }, status) then
-      --don't include files not in the current working directory
-      if utils.is_subpath(state.path, path) then
-        table.insert(paths, path)
+    if path ~= current_path and status ~= "!" then
+      if status ~= "?" or consider_untracked then
+        if utils.is_subpath(state.path, path) then
+          --don't include files not in the current working directory
+          table.insert(paths, path)
+        end
       end
     end
   end
