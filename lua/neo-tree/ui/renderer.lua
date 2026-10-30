@@ -973,6 +973,19 @@ end
 ---@field text string
 ---@field handler function
 
+---Record the highlighted line range before leaving visual mode.
+---`'<` / `'>` are still unset while a visual mapping callback runs.
+---@param state neotree.State
+local capture_visual_selection = function(state)
+  local mode = vim.api.nvim_get_mode().mode
+  local in_visual = mode ~= "n" and vim.tbl_contains(visual_modes, mode)
+  local a = vim.fn.getpos(in_visual and "." or "'<")
+  local b = vim.fn.getpos(in_visual and "v" or "'>")
+  if a[2] > 0 and b[2] > 0 then
+    state.position.visual_selection = { a, b }
+  end
+end
+
 ---@param state neotree.StateWithTree
 local set_buffer_mappings = function(state)
   ---@type table<string, neotree.State.ResolvedMapping?>
@@ -1054,6 +1067,7 @@ local set_buffer_mappings = function(state)
       keymap.set(state.bufnr, "n", cmd, resolved_mappings[cmd].handler, map_options)
       if type(vfunc) == "function" then
         keymap.set(state.bufnr, "v", cmd, function()
+          capture_visual_selection(state)
           vim.api.nvim_feedkeys(ESC_KEY, "i", true)
           vim.schedule(function()
             local selected_nodes = get_selected_nodes(state)

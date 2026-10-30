@@ -246,6 +246,9 @@ M.git_status = function(config, node, state)
   local path = node.path
   local worktree_root = git.find_existing_worktree(path)
   local status, status_from_diff = git.find_existing_status_code(path, state.git_base_by_worktree)
+  if state.name == "git_status" and node.extra then
+    status = node.extra.git_status or status
+  end
 
   if not status then
     return {}

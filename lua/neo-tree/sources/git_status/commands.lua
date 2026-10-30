@@ -96,4 +96,22 @@ end
 
 cc._add_common_commands(M)
 
+-- Source-specific staging uses the real path, since section IDs are virtual.
+local actions = require("neo-tree.sources.git_status.lib.actions")
+M.git_add_file = function(state)
+  actions.enqueue(state, "stage")
+end
+M.git_unstage_file = function(state)
+  actions.enqueue(state, "unstage")
+end
+M.git_add_all = function(state)
+  actions.enqueue(state, "stage", true)
+end
+M.git_toggle_file_stage = function(state)
+  local node = state.tree:get_node()
+  if node then
+    actions.enqueue(state, node.extra and node.extra.git_group == "staged" and "unstage" or "stage")
+  end
+end
+
 return M

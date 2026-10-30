@@ -33,10 +33,12 @@ M.name = function(config, node, state)
   if node.type == "directory" then
     if node:get_depth() == 1 then
       highlight = highlights.ROOT_NAME
-      if node:has_children() then
-        name = "GIT STATUS for " .. name
-      else
-        name = "GIT STATUS (working tree clean) for " .. name
+      if not (node.extra and node.extra.git_group) then
+        if node:has_children() then
+          name = "GIT STATUS for " .. name
+        else
+          name = "GIT STATUS (working tree clean) for " .. name
+        end
       end
     else
       highlight = highlights.DIRECTORY_NAME

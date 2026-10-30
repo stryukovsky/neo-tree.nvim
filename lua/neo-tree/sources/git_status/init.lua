@@ -2,7 +2,6 @@
 --or read the state of this source.
 
 local utils = require("neo-tree.utils")
-local renderer = require("neo-tree.ui.renderer")
 local items = require("neo-tree.sources.git_status.lib.items")
 local events = require("neo-tree.events")
 local manager = require("neo-tree.sources.manager")
@@ -24,16 +23,12 @@ end
 ---Navigate to the given path.
 ---@param path string Path to navigate to. If empty, will navigate to the cwd.
 M.navigate = function(state, path, path_to_reveal, callback, async)
-  state.path = path or state.path
+  state.path = path == "" and vim.fn.getcwd() or path or state.path
   state.dirty = false
   if path_to_reveal then
-    renderer.position.set(state, path_to_reveal)
+    state.git_status_reveal = path_to_reveal
   end
-  items.get_git_status(state)
-
-  if type(callback) == "function" then
-    vim.schedule(callback)
-  end
+  items.get_git_status(state, callback)
 end
 
 M.refresh = function()
@@ -105,6 +100,27 @@ M.setup = function(config, global_config)
   manager.subscribe(M.name, {
     event = events.GIT_EVENT,
     handler = M.refresh,
+  })
+
+  local watch = require("neo-tree.sources.git_status.lib.watch")
+  manager.subscribe(M.name, {
+    event = events.NEO_TREE_WINDOW_AFTER_CLOSE,
+    handler = watch.stop_hidden,
+  })
+  local group = vim.api.nvim_create_augroup("NeoTreeGitStatusRefresh", { clear = true })
+  vim.api.nvim_create_autocmd({ "FocusGained", "TermClose", "TermLeave" }, {
+    group = group,
+    callback = M.refresh,
+  })
+  vim.api.nvim_create_autocmd("WinClosed", {
+    group = group,
+    callback = function()
+      vim.schedule(watch.stop_hidden)
+    end,
+  })
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = group,
+    callback = watch.stop_all,
   })
 end
 

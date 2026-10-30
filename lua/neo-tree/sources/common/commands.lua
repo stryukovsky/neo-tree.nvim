@@ -442,7 +442,7 @@ M.git_revert_file = function(state)
   if node.type == "message" then
     return
   end
-  local path = node:get_id()
+  local path = node.path or node:get_id()
   local cmd = { "git", "checkout", "HEAD", "--", path }
   local msg = string.format("Are you sure you want to revert %s?", node.name)
   inputs.confirm(msg, function(yes)
