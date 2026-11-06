@@ -114,6 +114,7 @@ M.get_git_status = function(state, callback)
       "--porcelain=v1",
       "-z",
       "--untracked-files=all",
+      "--ignore-submodules=none",
     }, {}, function(result)
       vim.schedule(function()
         if not current() then

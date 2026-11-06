@@ -243,6 +243,86 @@ eq(nil, gs.status(root)[root .. "/module"])
 write("module/file.txt", "dirty")
 sub_status = gs.status(root)
 eq("module", go("a/deep/one.txt", false, sub_status))
+-- Inspect the submodule through the real Git-status Enter mapping.
+local inspector = require("neo-tree.sources.git_status.lib.submodule")
+local clean_pin = inspector.collect(root, root .. "/module")
+eq(clean_pin.head, clean_pin.checkout)
+eq(true, clean_pin.unstaged)
+eq(true, clean_pin.dirty)
+eq(nil, inspector.collect(root, root .. "/a"))
+eq(nil, inspector.collect(root, root .. "/z.txt"))
+git("-C", root .. "/module", "add", ".")
+git(
+  "-C",
+  root .. "/module",
+  "-c",
+  "user.name=Test",
+  "-c",
+  "user.email=test@example.com",
+  "commit",
+  "-qm",
+  "next pin"
+)
+local changed_pin = inspector.collect(root, root .. "/module")
+assert(changed_pin.head ~= changed_pin.checkout)
+eq(changed_pin.head, changed_pin.index)
+git("add", "module")
+local staged_pin = inspector.collect(root, root .. "/module")
+eq(changed_pin.checkout, staged_pin.index)
+eq(true, staged_pin.staged)
+eq(false, staged_pin.unstaged)
+require("neo-tree.command").execute({ action = "show", source = "git_status", dir = root })
+local status_state = require("neo-tree.sources.manager").get_state("git_status")
+local module_id = "git_status:staged:" .. root .. "/module"
+assert(vim.wait(5000, function()
+  return status_state.tree and status_state.tree:get_node(module_id)
+end, 10))
+renderer.focus_node(status_state, module_id)
+local tree_win = vim.api.nvim_get_current_win()
+vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "xt", false)
+local popup = vim.api.nvim_get_current_win()
+local popup_buf = vim.api.nvim_win_get_buf(popup)
+eq("editor", vim.api.nvim_win_get_config(popup).relative)
+local lines = vim.api.nvim_buf_get_lines(popup_buf, 0, -1, false)
+eq(3, #lines)
+eq("uncommitted changes inside: NO", lines[1])
+eq("HEAD in child: " .. staged_pin.checkout:sub(1, 8), lines[2])
+eq("pinned in parent: " .. staged_pin.head:sub(1, 8), lines[3])
+eq(false, vim.bo[popup_buf].modifiable)
+local marks = vim.api.nvim_buf_get_extmarks(
+  popup_buf,
+  vim.api.nvim_create_namespace("neo-tree-submodule-status"),
+  0,
+  -1,
+  { details = true }
+)
+eq("DiagnosticError", marks[1][4].hl_group)
+vim.api.nvim_set_current_win(tree_win)
+assert(vim.wait(1000, function()
+  return not vim.api.nvim_buf_is_valid(popup_buf)
+end, 10))
+eq(false, vim.api.nvim_win_is_valid(popup))
+-- Reopen and close directly; no hidden scratch buffer remains.
+local second_win, second_buf = inspector.show(staged_pin, "staged")
+vim.api.nvim_win_close(second_win, true)
+assert(vim.wait(1000, function()
+  return not vim.api.nvim_buf_is_valid(second_buf)
+end, 10))
+for _, key in ipairs({ "q", "<Esc>" }) do
+  local close_win, close_buf = inspector.show(staged_pin)
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(key, true, false, true), "xt", false)
+  eq(false, vim.api.nvim_win_is_valid(close_win))
+  eq(false, vim.api.nvim_buf_is_valid(close_buf))
+end
+local dirty_win, dirty_buf = inspector.show(clean_pin)
+eq("uncommitted changes inside: YES", vim.api.nvim_buf_get_lines(dirty_buf, 0, 1, false)[1])
+vim.api.nvim_win_close(dirty_win, true)
+-- Uninitialized checkout must not accidentally display the superproject HEAD.
+vim.fn.rename(root .. "/module/.git", root .. "/module/.git.saved")
+local unavailable = inspector.collect(root, root .. "/module")
+eq(nil, unavailable.checkout)
+eq(staged_pin.head, unavailable.head)
+vim.fn.rename(root .. "/module/.git.saved", root .. "/module/.git")
 vim.fn.delete(source, "rf")
 vim.fn.delete(root, "rf")
 print("PASS: " .. count .. " navigation/status checks")

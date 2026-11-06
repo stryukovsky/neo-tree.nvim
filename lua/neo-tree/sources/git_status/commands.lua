@@ -94,6 +94,12 @@ M.rename_basename = function(state)
   cc.rename_basename(state, refresh)
 end
 
+M.open = function(state)
+  if not require("neo-tree.sources.git_status.lib.submodule").open(state) then
+    cc.open(state)
+  end
+end
+
 cc._add_common_commands(M)
 
 -- Source-specific staging uses the real path, since section IDs are virtual.
