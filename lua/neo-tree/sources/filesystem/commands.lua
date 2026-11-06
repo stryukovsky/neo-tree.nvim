@@ -6,7 +6,6 @@ local utils = require("neo-tree.utils")
 local filter = require("neo-tree.sources.filesystem.lib.filter")
 local renderer = require("neo-tree.ui.renderer")
 local log = require("neo-tree.log")
-local uv = vim.uv or vim.loop
 
 ---@class neotree.sources.Filesystem.Commands : neotree.sources.Common.Commands
 local M = {}
@@ -155,53 +154,23 @@ end
 ---@param state neotree.StateWithTree
 ---@param reverse boolean?
 local focus_next_git_modified = function(state, reverse)
-  local node = assert(state.tree:get_node())
-  local current_path = node:get_id()
-  local _, worktree_info = require("neo-tree.git").find_existing_worktree(current_path)
-  if not utils.truthy(worktree_info) then
+  local node = state.tree:get_node()
+  if not node then
     return
   end
-  ---@cast worktree_info -nil
-  local paths = { current_path }
-  local consider_untracked = require("neo-tree").peek_config().consider_untracked_as_git_change
-  for path, status in pairs(worktree_info.status) do
-    if path ~= current_path and status ~= "!" then
-      if status ~= "?" or consider_untracked then
-        if utils.is_subpath(state.path, path) then
-          --don't include files not in the current working directory
-          table.insert(paths, path)
-        end
-      end
-    end
+  local current_path = node:get_id()
+  local _, worktree_info = require("neo-tree.git").find_existing_worktree(current_path)
+  if not worktree_info or not worktree_info.status then
+    return
   end
-  local sorted_paths = utils.sort_by_tree_display(paths)
-
-  ---@param path string
-  ---@return boolean is_file
-  local is_file = function(path)
-    local success, stats = pcall(uv.fs_stat, path)
-    return (success and stats and stats.type ~= "directory" or false)
-  end
-
-  local passed = false
-  local target = nil
-  local from, to, increment = 1, #sorted_paths, 1
-  if reverse then
-    from, to, increment = #sorted_paths, 1, -1
-  end
-  for i = from, to, increment do
-    local path = sorted_paths[i]
-    if target == nil and is_file(path) then
-      target = path
-    end
-    if passed then
-      if is_file(path) then
-        target = path
-        break
-      end
-    elseif path == current_path then
-      passed = true
-    end
+  local target = require("neo-tree.sources.filesystem.lib.git_navigation").target(
+    state,
+    current_path,
+    worktree_info.status,
+    reverse
+  )
+  if not target then
+    return
   end
 
   local existing = state.tree:get_node(target)

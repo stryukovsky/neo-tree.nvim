@@ -205,6 +205,12 @@ local make_git_status_cmd = function(porcelain_version, worktree_root, opts)
   opts = opts or {}
   opts.ignored = opts.ignored or "traditional"
   opts.untracked_files = opts.untracked_files or "normal"
+  if
+    opts.untracked_files == "normal"
+    and require("neo-tree").peek_config().consider_untracked_as_git_change
+  then
+    opts.untracked_files = "all"
+  end
   local args = git_cmd.with_args({
     "-C",
     worktree_root,
