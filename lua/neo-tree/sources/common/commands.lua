@@ -443,11 +443,21 @@ M.git_revert_file = function(state)
     return
   end
   local path = node.path or node:get_id()
-  local cmd = { "git", "checkout", "HEAD", "--", path }
   local msg = string.format("Are you sure you want to revert %s?", node.name)
   inputs.confirm(msg, function(yes)
     if yes then
-      vim.fn.system(cmd)
+      local tracked = vim.fn.systemlist({ "git", "--literal-pathspecs", "ls-files", "--cached", "--", path })
+      if vim.v.shell_error ~= 0 then
+        popups.alert("ERROR: git ls-files", tracked)
+        return
+      end
+      local cmd = #tracked == 0
+          and { "git", "--literal-pathspecs", "clean", "-fd", "--", path }
+        or { "git", "--literal-pathspecs", "checkout", "HEAD", "--", path }
+      local result = vim.fn.systemlist(cmd)
+      if vim.v.shell_error ~= 0 then
+        popups.alert("ERROR: git revert", result)
+      end
       events.fire_event(events.GIT_EVENT)
     end
   end)
