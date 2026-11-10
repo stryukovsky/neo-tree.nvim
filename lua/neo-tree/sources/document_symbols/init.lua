@@ -37,6 +37,15 @@ local follow_symbol = function()
   if state.lsp_bufnr ~= vim.api.nvim_get_current_buf() then
     return
   end
+  -- The editor window may close or switch buffers while follow is debounced.
+  if
+    not state.tree
+    or not state.lsp_winid
+    or not vim.api.nvim_win_is_valid(state.lsp_winid)
+    or vim.api.nvim_win_get_buf(state.lsp_winid) ~= state.lsp_bufnr
+  then
+    return
+  end
   local cursor = vim.api.nvim_win_get_cursor(state.lsp_winid)
   local node_id = symbols.get_symbol_by_loc(state.tree, { cursor[1] - 1, cursor[2] })
   if #node_id > 0 then

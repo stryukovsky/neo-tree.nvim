@@ -30,6 +30,57 @@ local changed = function(code)
   return code ~= " " and code ~= "." and code ~= "?" and code ~= "!"
 end
 
+-- Resolve against the old tree before replacing it: row numbers change when
+-- entries move between sections or their now-empty parent directories disappear.
+local preserve_selection = function(state, roots)
+  if not state.tree or not renderer.tree_is_visible(state) then
+    return
+  end
+  local node, line, last_line = state.tree:get_node(vim.api.nvim_win_get_cursor(state.winid)[1])
+  if not node then
+    return
+  end
+  local present = {}
+  local function collect(items)
+    for _, item in ipairs(items) do
+      present[item.id] = true
+      collect(item.children or {})
+    end
+  end
+  collect(roots)
+  local function select(candidate)
+    if candidate and present[candidate:get_id()] then
+      renderer.position.set(state, candidate:get_id())
+      return true
+    end
+  end
+  if select(node) then
+    return
+  end
+  local after = false
+  for _, sibling in ipairs(state.tree:get_nodes(node:get_parent_id())) do
+    if after and select(sibling) then
+      return
+    end
+    after = sibling:get_id() == node:get_id() or after
+  end
+  if not line then
+    return
+  end
+  -- Includes the next section when the last entry in this one disappears.
+  for row = (last_line or line) + 1, vim.api.nvim_buf_line_count(state.bufnr) do
+    if select(state.tree:get_node(row)) then
+      return
+    end
+  end
+  -- At the end of the tree, prefer the nearest surviving item above it.
+  for row = line - 1, 1, -1 do
+    if select(state.tree:get_node(row)) then
+      return
+    end
+  end
+end
+
 M.render = function(state, entries)
   local roots = {}
   state.default_expanded_nodes = {}
@@ -89,6 +140,8 @@ M.render = function(state, entries)
       end
     end
     state.git_status_reveal = nil
+  else
+    preserve_selection(state, roots)
   end
   renderer.show_nodes(roots, state)
 end

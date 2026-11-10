@@ -62,6 +62,7 @@ describe("Git status sections and queued index writes", function()
       assert(state.tree:get_node(id("unstaged", "deleted.txt")), "deleted file absent")
       local actions = require("neo-tree.sources.git_status.lib.actions")
       local selected = state.tree:get_node(id("unstaged", "new file.txt"))
+      require("neo-tree.ui.renderer").focus_node(state, selected:get_id())
       local fake = {
         path = root,
         tree = {
@@ -83,6 +84,7 @@ describe("Git status sections and queued index writes", function()
         not state.tree:get_node(id("unstaged", "new file.txt")),
         "staged file remains unstaged"
       )
+      assert.are.equal(id("staged"), state.tree:get_node():get_id())
       selected = state.tree:get_node(id("staged", "new file.txt"))
       actions.enqueue(fake, "unstage")
       assert(
