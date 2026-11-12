@@ -232,8 +232,10 @@ end
 
 M.refresh = refresh
 
-M.rename = function(state)
-  cc.rename(state, utils.wrap(refresh, state))
+---@param state neotree.State
+---@param hooks neotree.sources.filesystem.RenameHooks?
+M.rename = function(state, hooks)
+  cc.rename(state, utils.wrap(refresh, state), hooks)
 end
 
 M.rename_basename = function(state)

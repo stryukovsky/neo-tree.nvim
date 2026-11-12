@@ -1143,13 +1143,16 @@ M.open_tab_drop = function(state, toggle_directory)
   open_with_cmd(state, "tab drop", toggle_directory)
 end
 
-M.rename = function(state, callback)
+---@param state neotree.State
+---@param callback neotree.sources.filesystem.ActionCallbacks.OnRename?
+---@param hooks neotree.sources.filesystem.RenameHooks?
+M.rename = function(state, callback, hooks)
   local tree = state.tree
   local node = assert(tree:get_node())
   if node.type == "message" then
     return
   end
-  fs_actions.rename_node(node.path, callback)
+  fs_actions.rename_node(node.path, callback, hooks)
 end
 
 M.rename_basename = function(state, callback)

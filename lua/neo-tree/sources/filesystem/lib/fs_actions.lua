@@ -924,12 +924,17 @@ end
 
 ---@alias neotree.sources.filesystem.ActionCallbacks.OnRename fun(source: string, destination: string)
 
+---@class neotree.sources.filesystem.RenameHooks
+---@field before_rename? fun(source: string, destination: string) Runs after validation, before disk changes; errors abort rename.
+---@field after_rename? fun(source: string, destination: string) Runs after disk and buffer rename; errors do not prevent refresh.
+
 ---@param prompt string
 ---@param default_name string?
 ---@param resolve_destination fun(input: string):string
 ---@param source string
 ---@param on_rename neotree.sources.filesystem.ActionCallbacks.OnRename?
-local rename_node = function(prompt, default_name, resolve_destination, source, on_rename)
+---@param hooks neotree.sources.filesystem.RenameHooks?
+local rename_node = function(prompt, default_name, resolve_destination, source, on_rename, hooks)
   inputs.input(prompt, default_name and escape_filename(default_name), function(new_name)
     -- If cancelled
     if not new_name or new_name == "" then
@@ -946,8 +951,22 @@ local rename_node = function(prompt, default_name, resolve_destination, source, 
       return
     end
 
+    if hooks and hooks.before_rename then
+      local ok, err = pcall(hooks.before_rename, source, destination)
+      if not ok then
+        log.error("Before rename failed: " .. tostring(err))
+        return
+      end
+    end
+
     local complete = vim.schedule_wrap(function()
       rename_buffer(source, destination)
+      if hooks and hooks.after_rename then
+        local ok, err = pcall(hooks.after_rename, source, destination)
+        if not ok then
+          log.error("After rename failed: " .. tostring(err))
+        end
+      end
       events.fire_event(events.FILE_RENAMED, {
         source = source,
         destination = destination,
@@ -984,7 +1003,8 @@ end
 -- Rename Node
 ---@param path string
 ---@param on_rename neotree.sources.filesystem.ActionCallbacks.OnRename?
-M.rename_node = function(path, on_rename)
+---@param hooks neotree.sources.filesystem.RenameHooks?
+M.rename_node = function(path, on_rename, hooks)
   local parent_path, name = utils.split_path(path)
   local prompt = string.format('Enter new name for "%s":', name)
 
@@ -992,7 +1012,7 @@ M.rename_node = function(path, on_rename)
     return parent_path .. utils.path_separator .. new_name
   end
 
-  rename_node(prompt, name, resolve_destination, path, on_rename)
+  rename_node(prompt, name, resolve_destination, path, on_rename, hooks)
 end
 
 -- Rename Node Base Name
