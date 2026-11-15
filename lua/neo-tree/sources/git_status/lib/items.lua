@@ -83,7 +83,10 @@ end
 
 M.render = function(state, entries)
   local roots = {}
-  state.default_expanded_nodes = {}
+  -- Defaults apply on every draw, so adding folders here during refresh would
+  -- reopen directories the user explicitly collapsed.
+  local first_render = state.tree == nil
+  state.default_expanded_nodes = first_render and {} or nil
   for _, group in ipairs({ "unstaged", "staged" }) do
     local context = file_items.create_context()
     context.state = state
@@ -118,7 +121,9 @@ M.render = function(state, entries)
       item.extra.git_group = group
       if item.children then
         item.loaded = true
-        state.default_expanded_nodes[#state.default_expanded_nodes + 1] = item.id
+        if first_render then
+          state.default_expanded_nodes[#state.default_expanded_nodes + 1] = item.id
+        end
         for _, child in ipairs(item.children) do
           identify(child)
         end

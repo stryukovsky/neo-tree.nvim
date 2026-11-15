@@ -870,13 +870,19 @@ M.select_nodes = function(tree, selector_func, limit)
   return found_nodes
 end
 
-M.set_expanded_nodes = function(tree, expanded_nodes)
+M.set_expanded_nodes = function(tree, expanded_nodes, preserve_collapsed_root)
   M.collapse_all_nodes(tree)
   log.debug("Setting expanded nodes")
   for _, id in ipairs(expanded_nodes or {}) do
     local node = tree:get_node(id)
     if node ~= nil then
       node:expand()
+    end
+  end
+  if preserve_collapsed_root then
+    local root = tree:get_nodes()[1]
+    if root and not vim.tbl_contains(expanded_nodes, root:get_id()) then
+      root:collapse()
     end
   end
 end
@@ -1620,7 +1626,11 @@ draw = function(nodes, state, parent_id)
     node.loaded = true
     node:expand()
   else
-    M.set_expanded_nodes(state.tree, expanded_nodes)
+    M.set_expanded_nodes(
+      state.tree,
+      expanded_nodes,
+      state.name == "git_status" and not state.default_expanded_nodes
+    )
   end
 
   -- This is to ensure that containers are always the right size
