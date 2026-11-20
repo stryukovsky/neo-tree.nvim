@@ -446,15 +446,22 @@ M.git_revert_file = function(state)
   local msg = string.format("Are you sure you want to revert %s?", node.name)
   inputs.confirm(msg, function(yes)
     if yes then
-      local tracked = vim.fn.systemlist({ "git", "--literal-pathspecs", "ls-files", "--cached", "--", path })
+      local tracked =
+        vim.fn.systemlist({ "git", "--literal-pathspecs", "ls-files", "--cached", "--", path })
       if vim.v.shell_error ~= 0 then
         popups.alert("ERROR: git ls-files", tracked)
         return
       end
-      local cmd = #tracked == 0
-          and { "git", "--literal-pathspecs", "clean", "-fd", "--", path }
-        or { "git", "--literal-pathspecs", "checkout", "HEAD", "--", path }
-      local result = vim.fn.systemlist(cmd)
+      if #tracked > 0 then
+        local result =
+          vim.fn.systemlist({ "git", "--literal-pathspecs", "checkout", "HEAD", "--", path })
+        if vim.v.shell_error ~= 0 then
+          popups.alert("ERROR: git revert", result)
+          return
+        end
+      end
+      -- Mixed directories need both operations; checkout leaves untracked files untouched.
+      local result = vim.fn.systemlist({ "git", "--literal-pathspecs", "clean", "-fd", "--", path })
       if vim.v.shell_error ~= 0 then
         popups.alert("ERROR: git revert", result)
       end
