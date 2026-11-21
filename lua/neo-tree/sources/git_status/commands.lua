@@ -107,8 +107,16 @@ local actions = require("neo-tree.sources.git_status.lib.actions")
 M.git_add_file = function(state)
   actions.enqueue(state, "stage")
 end
+---@type neotree.TreeCommandVisual
+M.git_add_file_visual = function(state, selected_nodes)
+  actions.enqueue(state, "stage", false, selected_nodes)
+end
 M.git_unstage_file = function(state)
   actions.enqueue(state, "unstage")
+end
+---@type neotree.TreeCommandVisual
+M.git_unstage_file_visual = function(state, selected_nodes)
+  actions.enqueue(state, "unstage", false, selected_nodes)
 end
 M.git_add_all = function(state)
   actions.enqueue(state, "stage", true)

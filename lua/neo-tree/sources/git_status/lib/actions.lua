@@ -2,25 +2,36 @@ local M = {}
 local queues = {}
 
 -- Serialize index writes per worktree. Keymaps capture paths now, never the cursor later.
-M.enqueue = function(state, action, all)
-  local node = state.tree and state.tree:get_node()
-  if not all and (not node or node.type == "message") then
-    return
+M.enqueue = function(state, action, all, selected_nodes)
+  local paths = {}
+  if not all then
+    local nodes = selected_nodes or { state.tree and state.tree:get_node() }
+    local seen = {}
+    local function add_path(path)
+      if path and not seen[path] then
+        seen[path] = true
+        paths[#paths + 1] = path
+      end
+    end
+    for _, node in ipairs(nodes) do
+      if node.type ~= "message" then
+        add_path(node.path)
+        local extra = node.extra or {}
+        local worktree_rename = extra.git_status == ".R" or extra.git_status == ".C"
+        if action == "unstage" or worktree_rename then
+          add_path(extra.original_path)
+        end
+      end
+    end
+    if #paths == 0 then
+      return
+    end
   end
   local root = state.path
   local queue = queues[root]
   if not queue then
     queue = { pending = {} }
     queues[root] = queue
-  end
-  local paths = {}
-  if not all then
-    paths[1] = node.path
-    local extra = node.extra or {}
-    local worktree_rename = extra.git_status == ".R" or extra.git_status == ".C"
-    if extra.original_path and (action == "unstage" or worktree_rename) then
-      paths[#paths + 1] = extra.original_path
-    end
   end
   queue.pending[#queue.pending + 1] = { action = action, paths = paths, all = all }
 
